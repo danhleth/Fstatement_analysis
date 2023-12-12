@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from abc import ABC, abstractmethod
 
 from typing import Any
+from decimal import Decimal
 import pandas as pd
 
 @dataclass
@@ -27,18 +28,21 @@ class FinancialStatementAnalysis:
 
     ## Required methods
     def __query_average_by_code(self,code):
-        average_total_assets = self.df[(self.df['code']==code)
-                                       & (self.df['quarter'] == self.quarter)
-                                       & (self.df['year'] == self.start_year) | (self.df['year']==self.end_year)]['value'].mean()
-        return average_total_assets
+        # average_total_assets = self.df[(self.df['quarter'] == self.quarter)
+        #                                & (self.df['year'] == self.start_year) | (self.df['year']==self.end_year)
+        #                                & (self.df['code']==code)]
+        average_total_assets = self.df.query(f"code == {code} \
+                                            & (year == {self.start_year} | year == {self.end_year}) \
+                                            & quarter == {self.quarter}")
+        
+        average_total_assets = average_total_assets['value'].mean()
+        return Decimal(average_total_assets)
     
 
 
     def __query_value_by_code(self, code):
-        value = self.df[(self.df['code'] == code)
-                             & (self.df['year'] == self.end_year)
-                             & (self.df['quarter'] == self.quarter)]['value']
-        return float(value)
+        value = self.df.query(f"code == {code} & year == {self.end_year} & quarter == {self.quarter}")['value'].values[0]
+        return Decimal(value)
 
 
     def get_average_total_assets(self):
@@ -48,7 +52,7 @@ class FinancialStatementAnalysis:
     
 
     def get_average_total_equity(self):
-        total_equity_code = 4400
+        total_equity_code = 4100
         average_total_equity = self.__query_average_by_code(total_equity_code)
         return average_total_equity
     
@@ -70,7 +74,7 @@ class FinancialStatementAnalysis:
         
         # total_debt = float(current_liability+non_current_liability)
         total_debt_code = 3000
-        total_debt = self.__query_value_by_code(3000)
+        total_debt = self.__query_value_by_code(total_debt_code)
         
         return total_debt
 
@@ -79,7 +83,7 @@ class FinancialStatementAnalysis:
         '''
         Revenue = Sales
         '''
-        revenue_code = 10
+        revenue_code = 20
         revenue = self.__query_value_by_code(revenue_code)
         return revenue
     
@@ -100,6 +104,7 @@ class FinancialStatementAnalysis:
         Start year:  {self.start_year} 
         End year:  {self.end_year} 
         Quarter:  {self.quarter}
+
         ### Acitivity ratios 
         Inventory turnover:  {self.inventory_turnover()}
         Days of inventory on hand:  {self.days_of_inventory_on_hand()}
@@ -110,11 +115,13 @@ class FinancialStatementAnalysis:
         Working capital turnover: {self.working_capital_turnover()}
         Fixed asset turnover:  {self.fixed_asset_turnover()}
         Total Asset turnover:  {self.total_asset_turnover()}
+
         ### Liquidity ratios
         Current ratio: {self.current_ratio()}
         Quick ratio: {self.quick_ratio()}
         Cash ratio: {self.cash_ratio()}
         Cash conversion cycle: {self.cash_conversion_cycle()}
+
         ### Solvecy ratios
         Debt to assets ratio: {self.debt_to_assets_ratio()}
         Debt to capital ratio: {self.debt_to_capital_ratio()}
@@ -122,6 +129,7 @@ class FinancialStatementAnalysis:
         Financial Leverate ratio: {self.financial_leverager_ratio()}
         Debt to EBITDA: {self.debt_to_ebitda()}
         Interest coverage: {self.interest_coverage()}
+
         ### Profitability Ratios
         Gross profit margin: {self.gross_profit_margin()}
         Operating profit margin: {self.operating_profit_margin()}
@@ -134,7 +142,40 @@ class FinancialStatementAnalysis:
         return content
     
     def to_csv(self, filename='default_log.csv'):
-        pass
+        data = {"Inventory": self.inventory_turnover(),
+                "Days of inventory on hand": self.days_of_inventory_on_hand(),
+                "Receivable turnover": self.reveivable_turnover(),
+                "Days of sales outstanding": self.days_of_sales_outstanding(),
+                "Payable turnover": self.payable_turnover(),
+                "Number of days of payables": self.num_days_of_payables(),
+                "Working capital turnover": self.working_capital_turnover(),
+                "Fixed asset turnover": self.fixed_asset_turnover(),
+                "Total Asset turnover": self.total_asset_turnover(),
+                "Current ratio": self.current_ratio(),
+                "Quick ratio": self.quick_ratio(),
+                "Cash ratio": self.cash_ratio(),
+                "Cash conversion cycle": self.cash_conversion_cycle(),
+                "Debt to assets ratio": self.debt_to_assets_ratio(),
+                "Debt to capital ratio": self.debt_to_capital_ratio(),
+                "Debt to equity ratio": self.debt_to_equity_ratio(),
+                "Financial Leverate ratio": self.financial_leverager_ratio(),
+                "Debt to EBITDA": self.debt_to_ebitda(),
+                "Interest coverage": self.interest_coverage(),
+                "Gross profit margin": self.gross_profit_margin(),
+                "Operating profit margin": self.operating_profit_margin(),
+                "Pretax margin": self.pretax_margin(),
+                "Net profit margin": self.net_profit_margin(),
+                "Operating ROA": self.operating_roa(),
+                "ROA": self.roa(),
+                "ROE": self.roe(),
+                }
+        df = pd.DataFrame(data, index=[0])
+        df.to_csv(filename, index=False)
+
+
+    def to_txt(self, filename="default_log.txt"):
+        with open(filename, 'w') as f:
+            f.write(self.__repr__())
 
     
     #########
@@ -164,11 +205,11 @@ class FinancialStatementAnalysis:
         '''
         Receivable turnover = Revenue / Average receivables
         '''
-        receivable_code = 1300
+        receivable_code = 1310
         revenue = self.get_revenue()
         
-        average_receivable = self.__query_value_by_code(receivable_code)
-        return float(revenue)/average_receivable
+        average_receivable = self.__query_average_by_code(receivable_code)
+        return revenue/average_receivable
     
 
     def days_of_sales_outstanding(self) -> float:
@@ -188,7 +229,7 @@ class FinancialStatementAnalysis:
         average_trade_payable_code = 3130
         cogs = self.__query_value_by_code(cogs_code)
         average_payables = self.__query_average_by_code(average_trade_payable_code)
-        return float(cogs) / average_payables
+        return cogs / average_payables
     
 
     def num_days_of_payables(self) -> float:
@@ -203,12 +244,15 @@ class FinancialStatementAnalysis:
     def working_capital_turnover(self) -> float:
         '''
         Working capital turnover = Revenue / Average working capital
+        Working capital = Current assets - Current liabilities
         '''
         working_capital_code = 10
+        current_assets_code = 1000
+        current_liabilities_code = 3100
 
         revenue = self.get_revenue()
-        average_working_capital = self.__query_average_by_code(working_capital_code)
-        return float(revenue)/average_working_capital
+        average_working_capital = self.__query_average_by_code(current_assets_code) - self.__query_average_by_code(current_liabilities_code)
+        return revenue/average_working_capital
     
 
     def fixed_asset_turnover(self) -> float:
@@ -218,7 +262,7 @@ class FinancialStatementAnalysis:
         fix_asset_code = 2200
         revenue = self.get_revenue()
         avg_fix_asset = self.__query_average_by_code(fix_asset_code)
-        return float(revenue)/avg_fix_asset
+        return revenue/avg_fix_asset
     
 
     def total_asset_turnover(self) -> float:
@@ -227,7 +271,7 @@ class FinancialStatementAnalysis:
         '''
         revenue = self.get_revenue()
         average_total_assets = self.get_average_total_assets()
-        return float(revenue)/average_total_assets
+        return revenue/average_total_assets
     
 
     #########
@@ -258,7 +302,7 @@ class FinancialStatementAnalysis:
         current_liability = self.get_current_liabilities()
         current_account_receivable = self.__query_value_by_code(current_account_receivable_code)
 
-        return float(cash+short_term_investment+current_account_receivable)/current_liability
+        return (cash+short_term_investment+current_account_receivable)/current_liability
     
     
     def cash_ratio(self):
@@ -270,7 +314,7 @@ class FinancialStatementAnalysis:
         cash = self.__query_value_by_code(cash_code)
         short_term_investment = self.__query_value_by_code(short_term_investment_code)
         current_liability = self.get_current_liabilities()                
-        return float(cash+short_term_investment)/current_liability           
+        return (cash+short_term_investment)/current_liability           
 
 
     def cash_conversion_cycle(self):
@@ -332,13 +376,18 @@ class FinancialStatementAnalysis:
         '''
         Debt to EBITDA = Total or net debt / EBITDA
         EBITDA = Operating Profit + Depreciation & Amortization
+        EBITDA = EBT(60) + Interest Expense (32)
         '''
         total_debt = self.get_total_debt()
-        operating_profit_code = 40
+        net_profit_code = 60
         depreciation_n_amortization_code = 111
+        interest_expesen_code = 33
 
-        ebitda = self.__query_value_by_code(operating_profit_code) \
-                + self.__query_value_by_code(depreciation_n_amortization_code)
+        ebitda = self.__query_value_by_code(net_profit_code) \
+                + self.__query_value_by_code(depreciation_n_amortization_code) \
+                + self.__query_value_by_code(33)
+
+
         
         return total_debt / ebitda
 
@@ -348,11 +397,11 @@ class FinancialStatementAnalysis:
         Interest Coverage = EBIT / Interest payments
         EBIT = Operating Profit - Interest Expense
         '''
-        operating_profit_code = 40
-        interest_expense_code = 32
+        net_profit_code = 60
+        interest_expense_code = 33
         interest_expense = self.__query_value_by_code(interest_expense_code)
 
-        ebit = self.__query_value_by_code(operating_profit_code) - interest_expense
+        ebit = self.__query_value_by_code(net_profit_code) + interest_expense
 
         return ebit/interest_expense
         
@@ -367,16 +416,20 @@ class FinancialStatementAnalysis:
         gross_profit_code = 30
         gross_profit = self.__query_value_by_code(gross_profit_code)
         revenue = self.get_revenue()
-        return float(gross_profit) / revenue
+        return (gross_profit) / revenue
     
 
     def operating_profit_margin(self):
         '''
         Operating Profit Margin = Operating Income / Revenue
+        Operating Income = Gross Profit - Selling Expenses - General and Administrative Expenses
         '''
-
-        operating_income_code = 40
-        operating_income = self.__query_value_by_code(operating_income_code)
+        gross_profit_code = 30
+        selling_expense_code = 35
+        general_n_admin_expense_code = 36
+        operating_income = self.__query_value_by_code(gross_profit_code) \
+                            - self.__query_value_by_code(selling_expense_code) \
+                            - self.__query_value_by_code(general_n_admin_expense_code)
         
         revenue = self.get_revenue()
         return operating_income/revenue
@@ -400,7 +453,7 @@ class FinancialStatementAnalysis:
         net_income = self.get_net_income()
         
         revenue = self.get_revenue()
-        return float(net_income) / revenue
+        return (net_income) / revenue
     
 
     def operating_roa(self):
