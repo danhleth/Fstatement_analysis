@@ -1,0 +1,5 @@
+db_name: algotradeDB
+host: api.algotrade.vn
+user: intern_re@d_only
+port: 5432
+password: DDDDDDDD
